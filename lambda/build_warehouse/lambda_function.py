@@ -25,7 +25,7 @@ INSERT INTO warehouse.dim_customer (
     customer_id, first_name, last_name, full_name, email, city, credit_score, created_at
 ) VALUES (
     'UNKNOWN', 'External', 'Customer', 'External / Guest Customer', 'external-guest@bank.internal', 'Unknown City', -1, '1900-01-01'
-) ON CONFLICT (customer_id) DO NOTHING;
+) ON CONFLICT (customer_id) DO NOTHING;z
 
 -- 2.0 External Account
 INSERT INTO warehouse.dim_account (

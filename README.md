@@ -163,3 +163,22 @@ Tài liệu này bao gồm:
 * Kiểm tra chất lượng dữ liệu.
 * Cấu hình và triển khai các thành phần trên AWS.
 * Theo dõi nhật ký và xử lý lỗi cơ bản.
+
+## Kiểm thử local
+
+Chạy unit test cleaning và điều phối pipeline (các bước được giả lập, không gọi AWS/database):
+
+```powershell
+.\venv\Scripts\python.exe -m pytest tests\test_clean_logic.py tests\test_pipeline_runner.py -q
+```
+
+Bộ kiểm tra dữ liệu PostgreSQL chạy riêng và cần database đã được nạp:
+
+```powershell
+.\venv\Scripts\python.exe tests\test_data_quality.py
+```
+
+Các script chạy thủ công theo thứ tự `scripts/1_ingest_kaggle_to_s3.py`,
+`scripts/2_clean_load_staging.py`, `scripts/3_build_warehouse.py`,
+`scripts/4_build_marts.py`. Hướng dẫn thuyết trình và demo xem
+[tài liệu local](docs/loi_thuyet_trinh_va_demo_local.md).

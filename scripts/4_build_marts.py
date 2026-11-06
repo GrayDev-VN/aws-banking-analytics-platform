@@ -14,7 +14,7 @@ import time
 import psycopg2
 from dotenv import load_dotenv
 
-if sys.platform == "win32":
+if __name__ == "__main__" and sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 load_dotenv()

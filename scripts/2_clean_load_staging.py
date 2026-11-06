@@ -9,7 +9,7 @@ import boto3
 from dotenv import load_dotenv
 
 # Đảm bảo in tiếng Việt trên console Windows không bị lỗi font
-if sys.platform == "win32":
+if __name__ == "__main__" and sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 load_dotenv()
@@ -104,23 +104,43 @@ def get_db_connection():
         sslmode="require"
     )
 
+def parse_datetime_column(values: pd.Series, dayfirst: bool = True) -> pd.Series:
+    """Ưu tiên ISO để không đảo tháng/ngày; fallback cho định dạng hỗn hợp.
+
+    Ngày mơ hồ như 03/04/2023 mặc định hiểu là 3 tháng 4.
+    Cấu hình dayfirst=False nếu nguồn sử dụng tháng/ngày.
+    """
+    parsed = pd.to_datetime(values, format="ISO8601", errors="coerce")
+    fallback = parsed.isna() & values.notna()
+    if fallback.any():
+        parsed.loc[fallback] = pd.to_datetime(
+            values.loc[fallback], format="mixed", errors="coerce", dayfirst=dayfirst
+        )
+    return parsed
+
+
 def clean_dataframe(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """Làm sạch và chuẩn hóa dữ liệu trước khi nạp"""
     # 1. Loại bỏ khoảng trắng thừa đầu/cuối của các cột chuỗi
-    for col in df.select_dtypes(include=["object"]).columns:
-        df[col] = df[col].astype(str).str.strip()
+    for col in df.select_dtypes(include=["object", "string"]).columns:
+        # Giữ giá trị thiếu là NULL, không chuyển thành chuỗi "None"/"nan".
+        df[col] = df[col].astype("string").str.strip()
 
     # 2. Chuẩn hóa cột ngày tháng dạng YYYY-MM-DD
     if "date_cols" in config:
         for col in config["date_cols"]:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d")
+                df[col] = parse_datetime_column(
+                    df[col], dayfirst=config.get("dayfirst", True)
+                ).dt.strftime("%Y-%m-%d")
 
     # 3. Chuẩn hóa cột thời gian dạng YYYY-MM-DD HH:MM:SS
     if "datetime_cols" in config:
         for col in config["datetime_cols"]:
             if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
+                df[col] = parse_datetime_column(
+                    df[col], dayfirst=config.get("dayfirst", True)
+                ).dt.strftime("%Y-%m-%d %H:%M:%S")
 
     return df
 

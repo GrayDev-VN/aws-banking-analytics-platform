@@ -2,8 +2,12 @@
 Unit tests for data cleaning logic in clean_load_staging
 """
 
+import importlib
+
 import pandas as pd
-from scripts.clean_load_staging import clean_dataframe
+import pytest
+
+clean_dataframe = importlib.import_module("scripts.2_clean_load_staging").clean_dataframe
 
 
 def test_clean_dataframe_strip_whitespace():
@@ -50,3 +54,36 @@ def test_clean_dataframe_datetime_formatting():
     cleaned_df = clean_dataframe(df, config)
 
     assert cleaned_df["transaction_date"].iloc[0] == "2023-05-10 14:30:00"
+
+
+@pytest.mark.parametrize("dtype", [object, "string"])
+def test_clean_dataframe_preserves_missing_strings(dtype):
+    df = pd.DataFrame({"name": pd.Series([None, " Alice "], dtype=dtype)})
+    result = clean_dataframe(df, {})
+    assert pd.isna(result.loc[0, "name"])
+    assert result.loc[1, "name"] == "Alice"
+
+
+@pytest.mark.parametrize("dayfirst, expected", [
+    (True, "2023-04-03"), (False, "2023-03-04"),
+])
+def test_clean_dataframe_ambiguous_date_policy(dayfirst, expected):
+    df = pd.DataFrame({"open_date": ["03/04/2023"]})
+    result = clean_dataframe(df, {"date_cols": ["open_date"], "dayfirst": dayfirst})
+    assert result.loc[0, "open_date"] == expected
+
+
+def test_clean_dataframe_invalid_and_missing_dates():
+    df = pd.DataFrame({"open_date": ["not-a-date", None, "2023-02-30"]})
+    result = clean_dataframe(df, {"date_cols": ["open_date"]})
+    assert result["open_date"].isna().all()
+
+
+def test_clean_dataframe_mixed_datetime_formats():
+    df = pd.DataFrame({"transaction_date": [
+        "2023-05-10 14:30:00.123456", "15-08-2023 09:15:00", None
+    ]})
+    result = clean_dataframe(df, {"datetime_cols": ["transaction_date"]})
+    assert result.loc[0, "transaction_date"] == "2023-05-10 14:30:00"
+    assert result.loc[1, "transaction_date"] == "2023-08-15 09:15:00"
+    assert pd.isna(result.loc[2, "transaction_date"])

@@ -7,9 +7,9 @@ Mục đích:
   bộ kiểm định chất lượng dữ liệu, tích hợp hệ thống cảnh báo đa kênh Amazon SNS.
 
 Chu trình thực thi:
-  1. STAGE 1: S3 Data Lake ➔ Staging Schema (clean_load_staging.py)
-  2. STAGE 2: Staging ➔ Warehouse Star Schema (build_warehouse.py)
-  3. STAGE 3: Warehouse ➔ Strategic Data Marts (build_marts.py)
+  1. STAGE 1: S3 Data Lake ➔ Staging Schema (2_clean_load_staging.py)
+  2. STAGE 2: Staging ➔ Warehouse Star Schema (3_build_warehouse.py)
+  3. STAGE 3: Warehouse ➔ Strategic Data Marts (4_build_marts.py)
   4. STAGE 4: Automated Data Quality Assurance Suite (test_data_quality.py)
   5. NOTIFICATION: Tự động gửi thông báo qua Amazon SNS (Success / Quality Alert / Failure)
 ================================================================================
@@ -29,24 +29,21 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Đảm bảo in tiếng Việt trên console Windows không bị lỗi
-if sys.platform == "win32":
+if __name__ == "__main__" and sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 load_dotenv()
 
 # Import các module pipeline
-from scripts.clean_load_staging import run_staging_pipeline
-from scripts.build_warehouse import build_warehouse
-from scripts.build_marts import build_marts
+run_staging_pipeline = importlib.import_module("scripts.2_clean_load_staging").run_staging_pipeline
+build_warehouse = importlib.import_module("scripts.3_build_warehouse").build_warehouse
+build_marts = importlib.import_module("scripts.4_build_marts").build_marts
 from tests.test_data_quality import run_all_checks_cli
-
-# Do 'lambda' là từ khóa bảo lưu của Python, sử dụng importlib để nạp module Lambda Notifier
-alert_module = importlib.import_module("lambda.alert_on_failure.lambda_function")
-lambda_handler = alert_module.lambda_handler
-
 
 def send_sns_notification(alert_type: str, stage: str = None, error: str = None, stack_trace: str = None, duration: float = 0, failed_tests: list = None):
     """Gọi Lambda Handler để phát thông báo qua Amazon SNS"""
+    # Không tạo AWS client khi chỉ import runner để kiểm thử.
+    alert_module = importlib.import_module("lambda.alert_on_failure.lambda_function")
     event = {
         "alert_type": alert_type,
         "stage": stage,
@@ -56,7 +53,7 @@ def send_sns_notification(alert_type: str, stage: str = None, error: str = None,
         "failed_tests": failed_tests or [],
         "ingest_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
     }
-    lambda_handler(event, None)
+    alert_module.lambda_handler(event, None)
 
 
 def execute_full_pipeline():

@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 import pytest
 
 # Đảm bảo in tiếng Việt và Emoji trên console Windows không bị lỗi encoding
-if sys.platform == "win32":
+if __name__ == "__main__" and sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 load_dotenv()
